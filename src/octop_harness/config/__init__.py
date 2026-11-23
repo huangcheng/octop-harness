@@ -680,6 +680,11 @@ class HarnessAgentConfig:
         Literal["input", "output", "tool_results"],
         ...,
     ] = ("input", "output", "tool_results")
+    # Mainland mobile numbers are PII by default. An assistant that operates
+    # the phone (calls, SMS) needs the numbers users type or receive intact,
+    # so it can opt out of phone masking alone; API keys and resident IDs stay
+    # masked regardless.
+    pii_mask_phones: bool = True
 
     # —— Tool guard (L1 parameter scan for shell tools) ——
     tool_guard_enabled: bool = True
@@ -1106,6 +1111,7 @@ class HarnessAgentConfig:
             "pii_enabled": self.pii_enabled,
             "pii_strategy": self.pii_strategy,
             "pii_surfaces": list(self.pii_surfaces),
+            "pii_mask_phones": self.pii_mask_phones,
             "tool_guard_enabled": self.tool_guard_enabled,
             "tool_guard_mode": self.tool_guard_mode,
             "tool_guard_rules_dir": _path_to_str(self.tool_guard_rules_dir)

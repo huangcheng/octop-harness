@@ -39,6 +39,7 @@ identity, allocation, or ownership. Legacy 15-digit IDs are not detected.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -154,20 +155,13 @@ def _overlaps(start: int, end: int, seen: list[tuple[int, int]]) -> bool:
     return any(start < previous_end and end > previous_start for previous_start, previous_end in seen)
 
 
-def detect_pii(text: str) -> list[PIIMatch]:
-    """Return all suspected PII spans inside ``text``.
-
-    Detects provider API keys, mainland mobile numbers and resident IDs
-    (see module docstring for supported formats). The output shape matches what
-    ``PIIMiddleware`` expects from a custom detector:
-    ``[{"type": str, "value": str, "start": int, "end": int}, ...]``.
-    Spans are returned in left-to-right order. Same-start key matches keep
-    the first label; personal numbers that overlap an earlier span are omitted.
-    """
+def _detect(text: str, skip_labels: frozenset[str]) -> list[PIIMatch]:
     seen_starts: set[int] = set()
     seen_spans: list[tuple[int, int]] = []
     matches: list[dict[str, object]] = []
     for label, pattern in _PATTERNS:
+        if label in skip_labels:
+            continue
         for m in pattern.finditer(text):
             # If the pattern uses a named group, prefer that span (so we mask
             # only the secret, not the surrounding ``api_key=`` boilerplate).
@@ -194,4 +188,33 @@ def detect_pii(text: str) -> list[PIIMatch]:
     return matches  # type: ignore[return-value]
 
 
-__all__ = ["detect_pii"]
+def detect_pii(text: str) -> list[PIIMatch]:
+    """Return all suspected PII spans inside ``text``.
+
+    Detects provider API keys, mainland mobile numbers and resident IDs
+    (see module docstring for supported formats). The output shape matches what
+    ``PIIMiddleware`` expects from a custom detector:
+    ``[{"type": str, "value": str, "start": int, "end": int}, ...]``.
+    Spans are returned in left-to-right order. Same-start key matches keep
+    the first label; personal numbers that overlap an earlier span are omitted.
+    """
+    return _detect(text, frozenset())
+
+
+def make_pii_detector(*, mask_phones: bool = True) -> Callable[[str], list[PIIMatch]]:
+    """Build a detector for ``PIIMiddleware`` with per-format opt-outs.
+
+    ``mask_phones=False`` keeps mainland mobile numbers intact while API keys
+    and resident IDs stay masked — for assistants that must act on the phone
+    numbers users type or receive (place a call, reply to an SMS). Secrets are
+    never opt-out-able.
+    """
+    skip = frozenset() if mask_phones else frozenset({"cn_mobile_phone"})
+
+    def detect(text: str) -> list[PIIMatch]:
+        return _detect(text, skip)
+
+    return detect
+
+
+__all__ = ["detect_pii", "make_pii_detector"]

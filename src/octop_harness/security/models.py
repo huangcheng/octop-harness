@@ -80,6 +80,9 @@ class PiiPolicy:
         "output",
         "tool_results",
     )
+    # Phone-operating assistants turn this off so mainland mobile numbers reach
+    # the model intact; secrets and resident IDs are still masked.
+    mask_phones: bool = True
 
 
 @dataclass
@@ -145,6 +148,7 @@ def _pii_from_raw(pii_raw: dict[str, Any]) -> PiiPolicy:
         enabled=bool(pii_raw.get("enabled", True)),
         strategy=strategy,
         surfaces=surfaces or ("input", "output", "tool_results"),
+        mask_phones=bool(pii_raw.get("mask_phones", True)),
     )
 
 
@@ -201,6 +205,7 @@ class SecurityPolicy:
                 "enabled": self.pii.enabled,
                 "strategy": self.pii.strategy,
                 "surfaces": list(self.pii.surfaces),
+                "mask_phones": self.pii.mask_phones,
             },
             "skill_scan": {"mode": self.skill_scan.mode},
             "tool_guard": {
@@ -327,6 +332,7 @@ class SecurityPolicy:
             pii_enabled=self.pii.enabled,
             pii_strategy=self.pii.strategy,
             pii_surfaces=self.pii.surfaces,
+            pii_mask_phones=self.pii.mask_phones,
             tool_guard_enabled=self.tool_guard.enabled,
             tool_guard_mode=self.tool_guard.mode,
         )

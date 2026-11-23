@@ -138,3 +138,17 @@ def test_hitl_without_filesystem_has_no_when_predicate() -> None:
     interrupt_on = policy.resolve_interrupt_on()
     assert interrupt_on is not None
     assert "when" not in interrupt_on["write_file"]
+
+
+def test_mask_phones_round_trips_and_reaches_config() -> None:
+    policy = SecurityPolicy.from_dict({"pii": {"mask_phones": False}})
+    assert policy.pii.mask_phones is False
+    assert SecurityPolicy.from_dict(policy.to_dict()).pii.mask_phones is False
+    cfg = HarnessAgentConfig(
+        name="demo",
+        workspace_dir="/tmp/demo",
+        backend={"type": "filesystem", "virtual_mode": True},
+    )
+    assert policy.apply_to_config(cfg).pii_mask_phones is False
+    # The default keeps masking phone numbers — opt-in only.
+    assert SecurityPolicy.defaults().apply_to_config(cfg).pii_mask_phones is True

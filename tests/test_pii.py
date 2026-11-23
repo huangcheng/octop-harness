@@ -6,7 +6,7 @@ from itertools import pairwise
 
 import pytest
 
-from octop_harness.middleware.pii import detect_pii
+from octop_harness.middleware.pii import detect_pii, make_pii_detector
 
 
 class TestDetectsKnownFormats:
@@ -213,3 +213,22 @@ def test_wider_api_key_assignment_remains_detected() -> None:
     value = "prefixprefixprefix-sk-abcdefghijklmnopqrstuv"
     matches = detect_pii(f"api_key={value}")
     assert any(m["type"] == "generic_api_key_assignment" and m["value"] == value for m in matches)
+
+
+class TestMakeDetectorPhoneOptOut:
+    def test_default_detector_masks_phones(self) -> None:
+        detect = make_pii_detector()
+        matches = detect("call 13800138000 now")
+        assert [m["type"] for m in matches] == ["cn_mobile_phone"]
+
+    def test_mask_phones_false_keeps_numbers_but_still_masks_secrets(self) -> None:
+        detect = make_pii_detector(mask_phones=False)
+        text = "call +8613800138000 with sk-4b829b7b-b0aa-4064-8d53-18b0025594f2 id 11010519491231002X"
+        matches = detect(text)
+        assert [m["type"] for m in matches] == ["openai", "cn_resident_id"]
+        assert "13800138000" not in [m["value"] for m in matches]
+
+    def test_mask_phones_false_does_not_touch_resident_ids(self) -> None:
+        detect = make_pii_detector(mask_phones=False)
+        matches = detect("身份证\uff1a11010519491231002X。")
+        assert [m["type"] for m in matches] == ["cn_resident_id"]

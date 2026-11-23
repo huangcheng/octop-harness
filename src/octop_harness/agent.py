@@ -54,7 +54,7 @@ from octop_harness.middleware.model_refusal import RefusalPassthroughMiddleware
 from octop_harness.middleware.model_retry import ModelRetryMiddleware
 from octop_harness.middleware.model_router import ModelRouterMiddleware
 from octop_harness.middleware.model_settings import ModelSettingsMiddleware
-from octop_harness.middleware.pii import detect_pii
+from octop_harness.middleware.pii import make_pii_detector
 from octop_harness.middleware.session_header import SessionHeaderMiddleware
 from octop_harness.middleware.skill_filter import SkillFilterMiddleware, render_slash_skill_prompt
 from octop_harness.middleware.tool_order import TaskToolLastMiddleware
@@ -1760,7 +1760,7 @@ class HarnessAgent:
                 PIIMiddleware(
                     pii_type="api_key",
                     strategy=cfg.pii_strategy,
-                    detector=detect_pii,
+                    detector=make_pii_detector(mask_phones=cfg.pii_mask_phones),
                     apply_to_input="input" in surfaces,
                     apply_to_output="output" in surfaces,
                     apply_to_tool_results="tool_results" in surfaces,
